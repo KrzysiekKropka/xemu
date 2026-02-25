@@ -18,7 +18,7 @@ endif
 vma_subproj = cmake.subproject('VulkanMemoryAllocator')
 libvma = static_library('vma',
                         sources: 'vma.cc',
-                        cpp_args: vma_defns,
+                        cpp_args: vma_defns + ['-Wno-unused-variable'],
                         include_directories: vma_subproj.include_directories('VulkanMemoryAllocator'),
                         dependencies: [vulkan, volk])
 vma = declare_dependency(include_directories: vma_subproj.include_directories('VulkanMemoryAllocator'),

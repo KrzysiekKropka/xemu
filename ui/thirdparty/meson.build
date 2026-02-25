@@ -1,5 +1,6 @@
 libstb_image = static_library('stb_image',
-                              sources: 'stb_image/stb_image_impl.c')
+                              sources: 'stb_image/stb_image_impl.c',
+                              c_args: ['-Wno-missing-prototypes'])
 stb_image = declare_dependency(include_directories: 'stb_image',
                                link_with: libstb_image)
 
@@ -11,7 +12,9 @@ else
   libfpng_cpp_args = ['-DFPNG_NO_SSE=1']
 endif
 
-libfpng = static_library('fpng', sources: 'fpng/fpng.cpp', cpp_args: libfpng_cpp_args)
+libfpng = static_library('fpng',
+                         sources: 'fpng/fpng.cpp',
+                         cpp_args: libfpng_cpp_args + ['-Wno-type-limits'])
 fpng = declare_dependency(include_directories: 'fpng', link_with: libfpng)
 
 json = dependency('nlohmann_json', required: true)
