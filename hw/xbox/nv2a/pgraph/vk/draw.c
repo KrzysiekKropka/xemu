@@ -902,13 +902,29 @@ static void create_pipeline(PGRAPHState *pg)
             GET_MASK(pgraph_reg_r(pg, NV_PGRAPH_BLEND), NV_PGRAPH_BLEND_EQN);
         assert(equation < ARRAY_SIZE(pgraph_blend_equation_vk_map));
 
-        color_blend_attachment.colorBlendOp =
-            pgraph_blend_equation_vk_map[equation];
-        color_blend_attachment.alphaBlendOp =
-            pgraph_blend_equation_vk_map[equation];
+        /*
+         * Signed blend equations require signed per-component source values,
+         * which are currently not emulated correctly.
+         *
+         * Keep this path as a no-op blend instead of using the unsigned
+         * substitute operations to avoid severe overbright artifacts.
+         */
+        if (equation == 5 || equation == 6) {
+            color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+            color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+            color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+            color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+            color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+        } else {
+            color_blend_attachment.colorBlendOp =
+                pgraph_blend_equation_vk_map[equation];
+            color_blend_attachment.alphaBlendOp =
+                pgraph_blend_equation_vk_map[equation];
 
-        uint32_t blend_color = pgraph_reg_r(pg, NV_PGRAPH_BLENDCOLOR);
-        pgraph_argb_pack32_to_rgba_float(blend_color, blend_constant);
+            uint32_t blend_color = pgraph_reg_r(pg, NV_PGRAPH_BLENDCOLOR);
+            pgraph_argb_pack32_to_rgba_float(blend_color, blend_constant);
+        }
     }
 
     VkPipelineColorBlendStateCreateInfo color_blending = {

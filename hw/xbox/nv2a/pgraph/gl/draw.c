@@ -179,13 +179,26 @@ void pgraph_gl_draw_begin(NV2AState *d)
         uint32_t equation = GET_MASK(pgraph_reg_r(pg, NV_PGRAPH_BLEND),
                                      NV_PGRAPH_BLEND_EQN);
         assert(equation < ARRAY_SIZE(pgraph_blend_equation_gl_map));
-        glBlendEquation(pgraph_blend_equation_gl_map[equation]);
 
-        uint32_t blend_color = pgraph_reg_r(pg, NV_PGRAPH_BLENDCOLOR);
-        float gl_blend_color[4];
-        pgraph_argb_pack32_to_rgba_float(blend_color, gl_blend_color);
-        glBlendColor(gl_blend_color[0], gl_blend_color[1], gl_blend_color[2],
-                     gl_blend_color[3]);
+        /*
+         * Signed blend equations require signed per-component source values,
+         * which are currently not emulated correctly.
+         *
+         * Keep this path as a no-op blend instead of using the unsigned
+         * substitute operations to avoid severe overbright artifacts.
+         */
+        if (equation == 5 || equation == 6) {
+            glBlendFunc(GL_ZERO, GL_ONE);
+            glBlendEquation(GL_FUNC_ADD);
+        } else {
+            glBlendEquation(pgraph_blend_equation_gl_map[equation]);
+
+            uint32_t blend_color = pgraph_reg_r(pg, NV_PGRAPH_BLENDCOLOR);
+            float gl_blend_color[4];
+            pgraph_argb_pack32_to_rgba_float(blend_color, gl_blend_color);
+            glBlendColor(gl_blend_color[0], gl_blend_color[1],
+                         gl_blend_color[2], gl_blend_color[3]);
+        }
     } else {
         glDisable(GL_BLEND);
     }
