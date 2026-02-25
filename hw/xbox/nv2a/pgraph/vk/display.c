@@ -777,7 +777,7 @@ static void update_descriptor_set(PGRAPHState *pg, SurfaceBinding *surface)
 static PvideoState get_pvideo_state(PGRAPHState *pg)
 {
     NV2AState *d = container_of(pg, NV2AState, pgraph);
-    PvideoState state;
+    PvideoState state = { 0 };
 
     // FIXME: This check against PVIDEO_SIZE_IN does not match HW behavior.
     // Many games seem to pass this value when initializing or tearing down
