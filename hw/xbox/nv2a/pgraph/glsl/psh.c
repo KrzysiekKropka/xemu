@@ -104,6 +104,9 @@ void pgraph_glsl_set_psh_state(PGRAPHState *pg, PshState *state)
     }
 
     for (int i = 0; i < 4; i++) {
+        state->signed_tex[i] = 0;
+        state->snorm_tex[i] = false;
+
         for (int j = 0; j < 4; j++) {
             state->compare_mode[i][j] =
                 (pgraph_reg_r(pg, NV_PGRAPH_SHADERCLIPMODE) >> (4 * i + j)) & 1;
@@ -179,22 +182,24 @@ void pgraph_glsl_set_psh_state(PGRAPHState *pg, PshState *state)
             }
         }
 
-        /* Keep track of whether texture data has been loaded as signed
-         * normalized integers or not. This dictates whether or not we will need
-         * to re-map in fragment shader for certain texture modes (e.g.
-         * bumpenvmap).
+        uint32_t filter = pgraph_reg_r(pg, NV_PGRAPH_TEXFILTER0 + i * 4);
+
+        /*
+         * Track channels that should be interpreted as signed.
          *
-         * FIXME: When signed texture data is loaded as unsigned and remapped in
-         * fragment shader, there may be interpolation artifacts. Fix this to
-         * support signed textures more appropriately.
+         * Note: This is currently done via shader-side remapping after texture
+         * fetch, which can still differ from hardware for filtered sampling.
          */
-#if 0 // FIXME
-        psh->snorm_tex[i] = (f.gl_internal_format == GL_RGB8_SNORM)
-                                 || (f.gl_internal_format == GL_RG8_SNORM);
-#endif
+        state->signed_tex[i] =
+            ((filter & NV_PGRAPH_TEXFILTER0_RSIGNED) ? (1 << 0) : 0) |
+            ((filter & NV_PGRAPH_TEXFILTER0_GSIGNED) ? (1 << 1) : 0) |
+            ((filter & NV_PGRAPH_TEXFILTER0_BSIGNED) ? (1 << 2) : 0) |
+            ((filter & NV_PGRAPH_TEXFILTER0_ASIGNED) ? (1 << 3) : 0);
+
+        /* Keep this as a coarse fast-path used by bumpenv logic. */
+        state->snorm_tex[i] = (state->signed_tex[i] & 0x7) == 0x7;
         state->shadow_map[i] = f.depth;
 
-        uint32_t filter = pgraph_reg_r(pg, NV_PGRAPH_TEXFILTER0 + i * 4);
         unsigned int min_filter = GET_MASK(filter, NV_PGRAPH_TEXFILTER0_MIN);
         enum ConvolutionFilter kernel = CONVOLUTION_FILTER_DISABLED;
         /* FIXME: We do not distinguish between min and mag when
@@ -1354,6 +1359,21 @@ static MString* psh_convert(struct PixelShader *ps)
             fprintf(stderr, "Unknown ps tex mode: 0x%x\n", ps->tex_modes[i]);
             assert(false);
             break;
+        }
+
+        if (sampler_type != NULL && ps->state->signed_tex[i]) {
+            if (ps->state->signed_tex[i] & (1 << 0)) {
+                mstring_append_fmt(vars, "t%d.r = sign3(t%d.r);\n", i, i);
+            }
+            if (ps->state->signed_tex[i] & (1 << 1)) {
+                mstring_append_fmt(vars, "t%d.g = sign3(t%d.g);\n", i, i);
+            }
+            if (ps->state->signed_tex[i] & (1 << 2)) {
+                mstring_append_fmt(vars, "t%d.b = sign3(t%d.b);\n", i, i);
+            }
+            if (ps->state->signed_tex[i] & (1 << 3)) {
+                mstring_append_fmt(vars, "t%d.a = sign3(t%d.a);\n", i, i);
+            }
         }
 
         if (sampler_type != NULL) {
