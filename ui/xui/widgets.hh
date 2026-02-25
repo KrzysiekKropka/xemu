@@ -36,9 +36,10 @@ float GetSliderValueForMousePos(ImVec2 mouse, ImVec2 pos, ImVec2 size);
 void DrawSlider(float v, bool hovered, ImVec2 pos, ImVec2 size);
 void DrawToggle(bool enabled, bool hovered, ImVec2 pos, ImVec2 size);
 bool Toggle(const char *str_id, bool *v, const char *description = nullptr);
-void Slider(const char *str_id, float *v, const char *description = nullptr, float min = 0, float max = 1, float increment = 0.05);
-bool FilePicker(const char *str_id, const char **buf, const char *filters,
-                bool dir = false);
+void Slider(const char *str_id, float *v, const char *description = nullptr);
+void FilePicker(const char *str_id, const char *current_path,
+                const SDL_DialogFileFilter *filters, int nfilters, bool dir,
+                std::function<void(const char *new_path)> on_select);
 void DrawComboChevron();
 void PrepareComboTitleDescription(const char *label, const char *description,
                                   float combo_size_ratio);

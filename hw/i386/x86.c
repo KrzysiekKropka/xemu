@@ -38,12 +38,6 @@
 #include "hw/nmi.h"
 #include "kvm/kvm_i386.h"
 
-#ifdef XBOX
-#include "ui/xemu-settings.h"
-#endif
-
-/* Physical Address of PVH entry point read from kernel ELF NOTE */
-static size_t pvh_start_addr;
 
 void init_topo_info(X86CPUTopoInfo *topo_info,
                     const X86MachineState *x86ms)
@@ -163,57 +157,6 @@ static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
 
         if (cpu_is_apic_enabled(cpu->apic_state)) {
             apic_deliver_nmi(cpu->apic_state);
-        }
-    }
-}
-
-static long get_file_size(FILE *f)
-{
-    long where, size;
-
-    /* XXX: on Unix systems, using fstat() probably makes more sense */
-
-    where = ftell(f);
-    fseek(f, 0, SEEK_END);
-    size = ftell(f);
-    fseek(f, where, SEEK_SET);
-
-    return size;
-}
-
-/* TSC handling */
-uint64_t cpu_get_tsc(CPUX86State *env)
-{
-#ifdef XBOX
-    int cpu_clock_hz = 733333333;
-    
-    if (g_config.perf.override_clockspeed) {
-        cpu_clock_hz *= g_config.perf.cpu_clockspeed_scale;
-    }
-    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), cpu_clock_hz, NANOSECONDS_PER_SECOND);
-#else
-    return cpus_get_elapsed_ticks();
-#endif
-}
-
-/* IRQ handling */
-static void pic_irq_request(void *opaque, int irq, int level)
-{
-    CPUState *cs = first_cpu;
-    X86CPU *cpu = X86_CPU(cs);
-
-    trace_x86_pic_interrupt(irq, level);
-    if (cpu->apic_state && !kvm_irqchip_in_kernel() &&
-        !whpx_apic_in_platform()) {
-        CPU_FOREACH(cs) {
-            cpu = X86_CPU(cs);
-            if (apic_accept_pic_intr(cpu->apic_state)) {
-                apic_deliver_pic_intr(cpu->apic_state, level);
-            }
-        }
-    } else {
-        if (level) {
-            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_interrupt(cs, CPU_INTERRUPT_NMI);
         }

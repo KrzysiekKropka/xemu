@@ -202,14 +202,6 @@ void CompatibilityReporter::Draw()
         ImGui::SameLine();
     }
 
-    if (g_config.perf.override_clockspeed) {
-        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-
-        ImGui::Text("Reports cannot be made while using altered CPU clock speeds");
-        ImGui::SameLine();
-    }
-
     ImGui::SetCursorPosX(ImGui::GetWindowWidth()-(120+10)*g_viewport_mgr.m_scale);
 
     ImGui::SetItemDefaultFocus();
@@ -220,10 +212,7 @@ void CompatibilityReporter::Draw()
             is_open = false;
         }
     }
-    if (g_config.perf.override_clockspeed) {
-        ImGui::PopItemFlag();
-        ImGui::PopStyleVar();
-    }
+
     ImGui::End();
 }
 
